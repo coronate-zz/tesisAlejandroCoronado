@@ -1,0 +1,114 @@
+---
+title: "Evaluacion por Municipios"
+author: "Alejandro Coronado"
+date: "10 de octubre de 2016"
+output: html_document
+---
+```{r}
+dataM<-readRDS('dataMunicipios.rds' )
+dataE<-readRDS('dataEstados.rds' )
+```
+# 2 Analisis de Datos
+## 2.1 Base de datos de municipios
+Utilizando el Sistema Estatal y Municipal de Bases de Datos (SIMBAD) recolectado por el INEGI, fue posible integrar la infromación de 15,468 observaciones para  606 municipios en 6 años diferentes. No obstante, algun datos tendran que ser descartados ya que la atribución por municpios no es clara( Otros municipios ) o la atribución del estado no esta definida ( Otro estado, Estados unidos)
+
+```{r}
+municpiosRegistrados<-subset(dataM, dataM$sumaAEE>=0, na.rm=TRUE)
+dataM<-subset(dataM, (dataM$municipioID!=997 & dataM$municipioID!=998 & dataM$municipioID!=996 & dataM$municipioID!=993 & dataM$municipioID!=992 & dataM$municipioID!=991 ))     
+```
+
+Haciendo la subselección tendremos 14,992 observaciones para 600 municipios en 6 años diferentes. Estamos analizando un total de 34 variables que provienen de diferentes sensos y evaluaciones por lo que las 14,992 observaciones no estaran disponibles para todas las variables. Para la infromación que se reporta cada 5 años se ha optado por atribuir los años 2005, 2006, 2007 al municipio j el resultado del censo en el año 2005 para el muinicipiuo j, mientras que para los años 2008, 2009, 2010 se atribuye el resultado del censo 2010 del municipio j. La razon de está práctica es tener una aproximación de la caracteristica en cuestión para los años faltantes. En resumen tenemos las siguientes variables en tres grupos:
+*Variables de Violencia:
+    + Agresiones 
+    + Enfrentamientos
+    + Ejecuciones
+    + Definiciones de violencia de violencia (capitulo 2.2)
+
+*Variables censo Población y Vivienda (Perioricidad 5 años)
+    +
+    +
+    +
+
+*Varaibles Anuales
+    +
+    +
+    +
+
+##2.2 Evaluacion de violencia 
+Es importante hacer una evalución sobre el la presencia de violencia entre estados y miunicipios para cada tipo de violencias (agresiones, enfrentamientos y ejeciciones). Para este ejercicio es necesario establecer ciertas definiciones de violencia que nos podran ayudar a determinar si un municipio es violento.
+
+---Dado que el motivo de este analisis es hacer una evaluación sobre la violencia sobre los insumos y variables de las empresas tendremos que descartar aquellos municpios que no tengan información de agresiones, enfrentamientos y ejecuciones--
+
+Estas son los tipos de violencia que contemplaremos a lo largo del documento:
+*violencia 1: tomara el valor 1 si el  numero de agresiones para el municipio i en el año j es mayor a 0
+*violencia 2: tomara el valor 1 si el  numero de enfrentamientos para el municipio i en el año j es mayor a 0
+*violencia 3: tomara el valor 1 si el  numero de ejecuciones para el municipio i en el año j es mayor a 0
+*violencia 4: tomara el valor 1 si el  numero de agresiones o de enfrentamientos o ejecuciones para el municipio i en el año j es mayor a 0
+*violencia 5: tomara el valor 1 si el  numero de agresiones y de enfrentamientos y ejecuciones para el municipio i en el año j es mayor a 0 (i.e los tres deben ser mayores a 0)
+*violencia promedio por anio: Tomara valor igual 1 si el muncipio j es tiene un mayor numero de agresiones ejecuciones y enfrentamientos que el promedio de todos los municipios en un año determinado.
+*violencia promedio por anio estado: Tomara valor igual 1 si el muncipio j es tiene un mayor numero de agresiones ejecuciones y enfrentamientos que el promedio de todos los municipios dentro del mismo estado en un año determinado.
+
+Los primero 5 tipos de violencia serán conocios como tipos de violencia absoluta mientras que los ultimos dos serán reconocidos como tipos de violencia relativa. Con estas definiciones procederemos a hacer una evaluación sobre los datos
+
+En primer lugar dividiremos a los muncipios entre violentos y no violentos usando la rpimera deficnion relativa de violencia (violencia promedio por año)
+
+```{r}
+municpiosRegistrados<-subset(dataM, dataM$violenciaPromedio_anio>=0, na.rm=TRUE)
+municipiosViolentos<-subset(dataM, dataM$violenciaPromedio_anio>0, na.rm=TRUE)
+municipiosTranquilos<-subset(dataM, dataM$violenciaPromedio_anio==0, na.rm=TRUE)
+head(municipiosViolentos, 5)
+anios<-unique(dataM$anio)
+for(i in anios )
+{ 
+    print(i)
+    print(length(unique( subset( municipiosTranquilos$municipioID, municipiosTranquilos$anio== i)  )))
+    print(length(unique( subset( municipiosViolentos$municipioID, municipiosViolentos$anio== i)  )))
+}
+       
+```
+
+
+De los 600 muncipios iniciales sólo 330 tienen infromación de ejecuciones, enfrentamientos o agresiones. Esta infromación esta contenida en 5 años (del 2006 al 2010). Haciendo la separación de municipios violentos tenemos 109 muncipios violentos en los 5 años de evaluación y 229 municpios no violentos. Graficando los municipios violentos podemos contemplar el número ade actos violentos (agresiones + enfrentamientos + ejecuciones ) para cada año
+```{r}
+for( i in anios )
+{
+    datasub<-subset(municipiosViolentos, (municipiosViolentos$anio==i   ))
+    datasub<-datasub[order(datasub$sumaAEE), ]
+    datasub<-tail(datasub,10)
+    print(ggplot( datasub, aes(x= municipio, y=sumaAEE , fill=municipio,  label=as.character(estado) ) ) + geom_bar(stat = "identity")  + scale_fill_grey(start = .01, end = .7) + xlab(paste ('Muncipios mas violentos, año ', i) )+ ylab('Total de Agresiones, Enfrentamientos y ejecuciones') )
+}
+
+rm(datasub)
+```
+
+Los municipios más violentos son casi los mismos a lo largo de los 5 años pero la cantidad de homicidios aumenta de maner exponencial confrome avanzamos de año. 
+Los municipios más violento resultan ser Juárez y Chihuahua en Chihuahua, Culiacán en Sonora y Tijuana en baja california. Son los muncipios más violentos pero con una gran diferencia respecto al resto. 
+Para observar este comportamiento con mayor detenimiento sería conveniente graficar el numero de actividades violentas para cada estado en el transcurso de los 5 años
+
+```{r , width=45}
+dataE<-subset(dataE, dataE$anio!=2005)
+anios<-unique(dataE$anio)
+for(i in anios)
+{
+datasub<-subset(dataE, dataE$anio==i)
+datasub<-datasub[order(datasub$sumaAEE), ]
+datasub<-tail(datasub,5)
+if(i==2006) listaEstados<-unique(datasub$estado)
+else
+    {
+        listaEstados<-cbind(listaEstados, unique(datasub$estado))
+    }
+
+}
+
+datasub<-subset(dataE, (dataE$estado=='Nuevo Leon' | dataE$estado=='Sonora' | dataE$estado=='Baja California'| dataE$estado=='Guerrero'| dataE$estado=='Michoacan'| dataE$estado=='Chihuahua'| dataE$estado=='Sinaloa'| dataE$estado=='Mexico'| dataE$estado=='Durango'| dataE$estado=='Tamaulipas'))
+
+```
+
+```{r}
+ggplot( datasub, aes( x=estado , y=sumaAEE , fill=estado)) + geom_bar(stat = "identity")+ facet_grid( ~anio) + xlab('Estados') +
+    theme(legend.position="bottom") + ylab('Total de agresiones, enfrentamientos y ejecuciones')+  scale_fill_grey(start = .01, end = .7) 
+```
+
+Tomando estos datos
+

@@ -1,0 +1,671 @@
+
+
+```{R}
+`Agresiones_data` <- read.csv("Agresiones.csv", head=FALSE)
+'agresiones_municipios'<-read.csv("agresiones_municipios.csv", head=FALSE)
+
+`Enfrentamientos_data` <- read.csv("Enfrentamientos.csv", head=FALSE)
+'enfrentamientos_municipios'<-read.csv("enfrentamientos_municipios.csv", head=FALSE)
+
+`Ejecuciones_data` <- read.csv("Ejecuciones.csv", head=FALSE)
+Ejecuciones_data['V6'][Ejecuciones_data['V6'] == 'z']<-0
+'ejecuciones_municipios'<-read.csv("ejecuciones_municipios.csv", head=FALSE)
+
+`listaMunicipios` <- read.csv("listaMunicipio.csv")
+```
+
+```{R}
+Agresiones_data<-dataHomicidios(Agresiones_data)
+Enfrentamientos_data<-dataHomicidios(Enfrentamientos_data)
+Ejecuciones_data<- dataHomicidios(Ejecuciones_data)
+
+
+#Aqui necesitamos ordenar los datos:
+
+```
+
+Nuestros datos no tiene etiquetas de municipios por lo que vamos a añadirlas con la funcion
+add municipio
+
+```{R}
+Agresiones_data<-addMunicipios(Agresiones_data, agresiones_municipios)
+Enfrentamientos_data<-addMunicipios(Enfrentamientos_data, enfrentamientos_municipios)
+Ejecuciones_data<- addMunicipios(Ejecuciones_data, ejecuciones_municipios)
+
+
+Ejecuciones_data['dato']<- as.numeric(as.character(unlist(Ejecuciones_data['dato'])))
+```
+
+Ahora solo agregaremos el nombre de las columnas con una funcion.
+Nuestros datos de municipios ya no los ocuparemos asi que podemos borrarlos
+
+```{R}
+rm(agresiones_municipios)
+rm(enfrentamientos_municipios)
+rm(ejecuciones_municipios)
+
+nombreColumnas <- c('muncipioID', 'estado', 'municipio' , 'anio', 'mes', 'agresiones'  )
+colnames(Agresiones_data)<-nombreColumnas
+
+nombreColumnas <- c('muncipioID', 'estado', 'municipio' , 'anio', 'mes', 'enfrentamientos'  )
+colnames(Enfrentamientos_data)<-nombreColumnas
+
+nombreColumnas <- c('muncipioID', 'estado', 'municipio' , 'anio', 'mes', 'ejecuciones'  )
+colnames(Ejecuciones_data)<-nombreColumnas
+
+rm(nombreColumnas)
+```
+
+
+Como nuestras variables se encuentran a nivel mes deberemos agregarlas por año:
+    -Necesitamos Crear un ID para agregar por ID
+        [  municipioID ]   +  [  anio  ]  ***Cada municipio para cada año = Agregar por mes
+    -Agregaremos usando el keyID de referencia
+ 
+```{R}
+# Generando keyID para agregar
+Agresiones_data['keyID']<-paste(Agresiones_data$muncipioID, Agresiones_data$anio)
+Enfrentamientos_data['keyID']<-paste(Enfrentamientos_data$muncipioID, Enfrentamientos_data$anio)
+Ejecuciones_data['keyID']<-paste(Ejecuciones_data$muncipioID, Ejecuciones_data$anio)
+
+
+#Agregando datos
+
+Agresiones_data     <-aggregate(Agresiones_data$agresiones, list(Agresiones_data$keyID), function(x){sum(as.numeric( as.character( x )), na.rm=TRUE)} )
+
+Enfrentamientos_data<-aggregate(Enfrentamientos_data$enfrentamientos, list(Enfrentamientos_data$keyID), function(x){sum(as.numeric( as.character( x )), na.rm=TRUE)} )
+
+Ejecuciones_data    <-aggregate(Ejecuciones_data$ejecuciones, list(Ejecuciones_data$keyID), function(x){sum(as.numeric( as.character( x )), na.rm=TRUE)} )
+
+nombreColumnas <- c('clave' , 'agresiones' )
+colnames(Agresiones_data)<-nombreColumnas
+
+nombreColumnas <- c('clave' , 'enfrentamientos' )
+colnames(Enfrentamientos_data)<-nombreColumnas
+
+nombreColumnas <- c('clave' , 'ejecuciones' )
+colnames(Ejecuciones_data)<-nombreColumnas
+
+```
+
+
+Debemos modificar la lista de municipios, repitiendola 5 veces para cada uno de los años [2005, 2006, 2007, 2008, 2009, 2010] y luego para cada mes [ENERO, FEBRERO...]. De esta forma podemos hacer un merge con la tabla principal de Municipios con las variables de anaisis, violnecia, casas, electricidad etc
+
+PRIMERO LO HACEMOS POR MES y en el SEGUNDO REPETIMOS POR AÑO PORQUE LA CAGAMOS
+```{r}
+
+data<-readRDS('dataMunicipios.rds')
+
+dataE<-readRDS('dataEstados.rds')
+
+```
+
+```{R}
+for(i in c('2005', '2006', '2007', '2008', '2009', '2010'))
+{
+  for(j in 1:12)
+  {
+    #print(paste('ANIO: ', paste(i, paste('MES: ', j))))
+    listaMunicipios2<-listaMunicipios
+    listaMunicipios2['anio']<-i
+    listaMunicipios2['mes']<-j
+    if(i=='2005' && j==1)
+    {
+        print(paste(i, '.....'))
+        newdf<-listaMunicipios2
+    }
+    else
+    {
+      
+        newdf<-rbind(listaMunicipios2, newdf)
+    }
+  }
+}
+
+listaMunicipios<-newdf
+listaMunicipios['clave']<-paste(listaMunicipios$clave, paste(listaMunicipios$anio, listaMunicipios$mes ))
+#listaMunicipios['anio']<-NULL
+rm(listaMunicipios2)
+rm(newdf)
+
+
+```
+
+
+
+
+
+```{r}
+
+for(i in c('2005', '2006', '2007', '2008', '2009', '2010'))
+{
+    listaMunicipios2<-listaMunicipios
+    listaMunicipios2['anio']<-i
+    if(i=='2005')
+    {
+        print(paste(i, '.....'))
+        newdf<-listaMunicipios2
+    }
+    else
+    {
+        newdf<-rbind(listaMunicipios2, newdf)
+    }
+}
+
+listaMunicipios<-newdf
+listaMunicipios['clave']<-paste(listaMunicipios$clave, listaMunicipios$anio, listaMunicipios$mes)
+#listaMunicipios['anio']<-NULL
+rm(listaMunicipios2)
+rm(newdf)
+
+```
+
+
+Modificamos los meses de violencia para que esten en fromato numerico y posteriormente los podamos utilizar como indice para hacer un merge entre municipios y cada una de las variables de interés.
+
+LOS data se iguala a cada una de las bases de datos, AEE...
+la primera variable se debe buscar y ajustar data[['mes']][1]==newMes[ X ] porque me dio hueva hacer todo el codigo pero siempre sera igual a diciembre
+
+```{r}
+data<-Agresiones_data
+#data<-Ejecuciones_data
+#data<-Enfrentamientos_data
+
+for(i in 1:length(data[,1]))
+{
+  #print(data[['mes']][i])
+  if(i==1)
+  {
+    newMes<-12
+  }
+  else
+  {
+    if(data[['mes']][i]=='Enero')
+    {
+      newMes<-rbind(newMes, 1)
+      
+    }
+    else if(data[['mes']][i]=='Febrero')
+    {
+      newMes<-rbind(newMes, 2)
+    }
+    else if(data[['mes']][i]=='Marzo')
+    {
+      newMes<-rbind(newMes, 3)
+    }
+    else if(data[['mes']][i]=='Abril')
+    {
+      newMes<-rbind(newMes, 4)
+    }
+    else if(data[['mes']][i]=='Mayo')
+    {
+      newMes<-rbind(newMes, 5)
+    }
+    else if(data[['mes']][i]=='Junio')
+    {
+      newMes<-rbind(newMes, 6)
+    }
+    else if(data[['mes']][i]=='Julio')
+    {
+      newMes<-rbind(newMes, 7)
+    }
+    else if(data[['mes']][i]=='Agosto')
+    {
+      newMes<-rbind(newMes, 8)
+    }
+    else if(data[['mes']][i]=='Septiembre')
+    {
+      newMes<-rbind(newMes, 9)
+    }
+    else if(data[['mes']][i]=='Octubre')
+    {
+      newMes<-rbind(newMes, 10)
+    }
+    else if(data[['mes']][i]=='Noviembre')
+    {
+      newMes<-rbind(newMes, 11)
+    }
+    else if(data[['mes']][i]=='Diciembre')
+    {
+      newMes<-rbind(newMes, 12)
+    }
+    else
+    {
+      print('ERROR')
+    }
+    
+  }
+  
+  
+}
+data['mes']<-newMes
+
+#Enfrentamientos_data<-data
+#Ejecuciones_data<-data
+Agresiones_data<-data
+
+```
+
+
+```{r}
+colnames( Agresiones_data )<- c("clave", "estado"  ,   "municipio"  ,"anio"  ,     "mes"      ,  "agresiones")
+colnames( Ejecuciones_data )<- c("clave", "estado"  ,   "municipio"  ,"anio"  ,     "mes"      ,  "ejecuciones")
+colnames( Enfrentamientos_data )<- c("clave", "estado"  ,   "municipio"  ,"anio"  ,     "mes"      ,  "enfrentamientos")
+
+Agresiones_data$clave<-paste(Agresiones_data$clave, paste(Agresiones_data$anio, paste(Agresiones_data$mes)))
+
+Enfrentamientos_data$clave<-paste(Enfrentamientos_data$clave, paste(Enfrentamientos_data$anio, paste(Enfrentamientos_data$mes)))
+
+Ejecuciones_data$clave<-paste(Ejecuciones_data$clave, paste(Ejecuciones_data$anio, paste(Ejecuciones_data$mes)))
+
+Agresiones_data['mes'] <-NULL
+Agresiones_data['anio'] <-NULL
+Agresiones_data['municipio']<-NULL
+Agresiones_data['estado']  <-NULL
+
+Ejecuciones_data['mes']<-NULL
+Ejecuciones_data['anio']<-NULL
+Ejecuciones_data['municipio']<-NULL
+Ejecuciones_data['estado']<-NULL
+
+Enfrentamientos_data['mes']<-NULL
+Enfrentamientos_data['anio']<-NULL
+Enfrentamientos_data['municipio']<-NULL
+Enfrentamientos_data['estado']<-NULL
+
+colnames( Agresiones_data )<- c("clave",  "agresiones")
+colnames( Ejecuciones_data )<- c("clave",  "ejecuciones")
+colnames( Enfrentamientos_data )<- c("clave", "enfrentamientos")
+
+
+
+```
+
+Ahora queremos tener una base de datos con todos los municipios con un inner join de las observaciones en Agreciones_data
+[clave][municipio ID]...[municipio]* MERGE*[agresiones] [enfrentamientos] [ejecuciones]
+
+```{r}
+listaMunicipios<-listaMunicipios
+listaMunicipios<-merge(x =listaMunicipios, y = Agresiones_data,      by = "clave", all.x = TRUE)
+listaMunicipios<-merge(x =listaMunicipios, y = Enfrentamientos_data, by = "clave", all.x = TRUE)
+listaMunicipios<-merge(x =listaMunicipios, y = Ejecuciones_data,     by = "clave", all.x = TRUE)
+
+#prueba1<-subset(listaMunicipios, prueba$agresiones>=0) 183 Obervaciones para agreciones > 0, 577 son 0 
+#prueba1<-subset(listaMunicipios, listaMunicipios$enfrentamientos>=0) 
+#prueba1<-subset(listaMunicipios2, listaMunicipios2$ejecuciones>=0) 
+```
+
+
+
+```{r}
+colnames(data)<-c("clave" ,"municipioID", "estadoID","estado","municipio","anio","mes", 'agresiones'   )
+```
+
+
+```{r}
+saveRDS(listaMunicipios2, 'violencia.rds')
+savedata<-readRDS("violencia.rds")
+
+saveRDS(listaMunicipios, 'violenciaMes.rds')
+data<-readRDS('violenciaMes.rds')
+
+
+```
+
+
+```{r}
+dataM<-readRDS('dataMunicipios.rds')
+data<-readRDS('violenciaMes.rds')
+```
+
+CREACION DE VIOLENCIA ACUMULADA 
+24 MESES
+12 MESES
+6 MESES
+
+```{r}
+
+data['clave']<-paste(data$estado, data$municipio, sep=' ')
+#data2<-subset(data, data$clave=='1 1')
+data['absMes']<-NA
+for(i in 1:length(data[,1]))
+{
+  #print(i)
+  data[['absMes']][i]<-(as.numeric(data[['anio']][i])-2005)*12+data[['mes']][i]
+}
+
+#data['ejecuciones_6Meses']<-NA
+#data['ejecuciones_12Meses']<-NA
+#data['ejecuciones_24Meses']<-NA
+newData<-list()
+numAcumulados<-11
+variable<-'ejecuciones_12Meses'
+
+
+```
+```{r}
+data<-readRDS('data2.rds')
+newData<-list()
+numAcumulados<-11
+variable<-'ejecuciones_12Meses'
+
+
+```
+
+
+
+```{r}
+#FUNCION DE VIOLENCIA ACUMULADA 
+
+for(i in unlist(unique(data['clave'])))
+{
+  a<-i
+  subData<-subset(data, data$clave==i)
+  print(paste('Estado, Municipio: ' , i)  )
+
+  for(j in 1:length(subData[,1]))
+  {
+    
+    if(subData[['absMes']][j]-numAcumulados<=0)
+    {
+      subData[[variable]][j]<-NA
+    }
+    else
+    {
+      if(is.na(subData[['ejecuciones']][j]))
+      {
+        suma<-0
+      }
+      else
+      {
+      suma<-subData[['ejecuciones']][j] #EL numero de ejecuciones en el mes en question
+      }
+      for(m in 1:numAcumulados) #Buscamos y sumamos los meses acumulados usando la fecha actual
+      {
+          busqueda<-subData[['absMes']][j]-m #NOS REGRESA el MES ABSOLUTO de FechaActual-MesAcumulado
+          #print(paste('BUSQUEDA: ', busqueda))
+          print(paste('SUB SUBSet: ' , subset(subData, subData$absMes==busqueda)[['ejecuciones']][1] ))
+          if(is.na(subset(subData, subData$absMes==busqueda)[['ejecuciones']][1]))
+          {
+            suma<-suma
+          }
+          else
+          {
+            suma<-suma+  as.numeric(subset(subData, subData$absMes==busqueda)[['ejecuciones']][1])
+          }
+      }
+      print(paste('SUMA: ', suma ))
+      subData[[variable]][j]<-suma
+    }
+    
+  }
+  if(length(newData)==0)
+  {
+    newData<-subData
+  }
+  else
+  {
+    newData<-rbind(newData, subData)
+  }
+        
+}
+
+data<-newData
+
+
+
+```
+
+
+
+HACER MERGE ENTRE VARIABLES PARA COMPIAR LOS DATOS POBLACIONALES ANUALES
+**Tambien es posible copiar la información de los de los tipo de violencia_promedio_Mes_estado
+```{r}
+data['clave']<-paste(data$estadoID, paste(data$municipioID, data$anio), sep=' ')
+dataM['clave']<-paste(dataM$estadoID, paste(dataM$municipioID, dataM$anio), sep=' ')
+dataInfo<-merge(x =data, y = dataM, by = "clave", all.x = TRUE)
+
+```
+
+
+***Vemos que del los 5600 datos, 100 observaciones de ejecuciones no fueron reportadas en un municipio concreto por lo que no s
+erán trabajadas:
+    -estas 100 observaciones sólo cubren 31 homicidios por lo que omitrilas, no afectara la integridad de            nues
+    tros datos
+    -Podemos ver los ID de estas observaciones en el codigo siguiente
+
+```{r}
+listaMunicipios<-unique(prueba1$clave)
+listaEjecuciones<-unique(Ejecuciones_data$clave)
+for(i in listaEjecuciones)
+{
+    a<-which(listaMunicipios == i )
+    if(length(a)==0)
+    {
+        print(i)
+    }
+}
+
+```
+
+PENDIENTES:
+    *Check de la infromacion
+        -Tomar un subset de una clave y comparar en excel
+            ºAgresiones
+            ºEjecuciones
+            ºEnfrentamientos
+    *Definiciones de violencia
+    *Agregar variables poblacionales:
+        -Por municipio, por año
+
+Lo que seguira en esta parte es hacer varias mediciones de violencia usando la infromacion construida hasta ahora. 
+Definiciones de Violencia:
+    -violencia1: 1 para ejecuciones
+    -violencia2: 1 para agresiones
+    -violencia3: 1 para enfrentamientos
+    -violencia4: suma(agresiones+ enfrentamientos + ejecuciones)/3 
+    -violencia5:1 si la observacion tiene almenos una ejecucion, enfrentamiento, agresión.
+    -violencia6:1 si los datos mayor al promedio(por año o en municipio por año)
+    -1 si suma(agresiones+ enfrentamientos + ejecuciones)/3 > X : Elegir diferentes valor de X para ver cuando           son significativos
+
+
+
+```{r}
+
+listaMunicipios<-data
+print('---Definiciones de violencia')
+listaMunicipios['violencia1']<-NA
+listaMunicipios['violencia2']<-NA
+listaMunicipios['violencia3']<-NA
+listaMunicipios['violencia4']<-NA
+listaMunicipios['violencia5']<-NA
+listaMunicipios['sumaAEE']<-NA
+for(i in 1:length(listaMunicipios[,1]))
+{
+    
+    #Violencia 1: agresiones > 0
+    if(is.na(listaMunicipios$agresiones[i]))
+    {
+        listaMunicipios['violencia1'][i,1]<-NA
+    }
+    else
+    {
+        if(listaMunicipios$agresiones[i]>0)#121212
+        {
+            listaMunicipios['violencia1'][i,1]<-1
+        }
+        else
+        {
+            listaMunicipios['violencia1'][i,1]<-0
+        }
+    }
+    
+    #Violencia 2: enfrentamientos > 0
+    if(is.na(listaMunicipios$enfrentamientos[i]))
+    {
+        listaMunicipios['violencia2'][i,1]<-NA
+    }
+    else
+    {
+        if(listaMunicipios$enfrentamientos[i]>0)
+        {
+            listaMunicipios['violencia2'][i,1]<-1
+        }
+        else
+        {
+            listaMunicipios['violencia2'][i,1]<-0
+        }
+    }
+    
+    #Violencia 3: ejecuciones > 0
+    if(is.na(listaMunicipios$ejecuciones[i]))
+    {
+        listaMunicipios['violencia3'][i,1]<-NA
+    }
+    else
+    {
+        if(listaMunicipios$ejecuciones[i]>0)
+        {
+            listaMunicipios['violencia3'][i,1]<-1
+        }
+        else
+        {
+            listaMunicipios['violencia3'][i,1]<-0
+        }
+    }
+    
+    #Violencia 4, 5: agresiones >0 || enfrentamientos >0 || ejecuciones > 
+    cadena<-c(listaMunicipios$agresiones[i], listaMunicipios$enfrentamientos[i], listaMunicipios$ejecuciones[i])
+     if(  is.na(listaMunicipios$agresiones[i] )  && is.na(listaMunicipios$enfrentamientos[i]) &&
+          is.na(listaMunicipios$ejecuciones[i])  ) 
+          {
+               listaMunicipios['violencia4'][i,1]<-NA
+               listaMunicipios['violencia5'][i,1]<-NA
+               listaMunicipios['sumaAEE'][i,1]<-NA
+     }
+    else
+    {
+        if(sum(cadena, na.rm = TRUE)==0)
+        {
+            listaMunicipios['violencia4'][i,1]<-0
+            listaMunicipios['sumaAEE'][i,1]<-0
+        }
+        else
+        {
+            listaMunicipios['violencia4'][i,1]<-1
+            listaMunicipios['sumaAEE'][i,1]<-sum(cadena, na.rm = TRUE)
+            if(sum(cadena, na.rm = TRUE)>3)
+            {
+              listaMunicipios['violencia5'][i,1]<-1
+               
+            }
+            else
+            {
+                listaMunicipios['violencia4'][i,1]<-0
+            }
+        }
+    }
+          
+    
+    
+    
+    
+}
+
+head(listaMunicipios$sumaAEE)
+```
+
+
+```{r}
+data2<-readRDS('data2.rds')
+data3<- violenciaPromedioAnio(data2 )
+saveRDS(data3, 'data3.rds')
+data4<-violenciaPromedioAnioEstados(data3)
+saveRDS(data4, 'data4.rds')
+
+
+
+
+```
+
+
+```{r}
+sectorCode<-read.csv('subsectorCode.csv')
+saveRDS(sectorCode, 'sectorCode.rds')
+```
+
+```{r}
+sec<-readRDS('sectorCode.rds')
+data<-readRDS('data3.rds')
+```
+
+```{r}
+names(data)<-c("clave" ,"municipioID"  ,"estadoID"        ,       "estado"                
+ , "municipio"         ,     "anio"           ,        "mes"          ,          "agresiones"            
+, "enfrentamientos"      ,  "ejecuciones"         ,   "absMes"           ,      "ejecuciones_6Meses"    
+, "ejecuciones_12Meses"  ,  "ejecuciones_24Meses"   , "DummyAgreciones"      ,       "DummyEnfrentamientos"            
+, "DummyEJecuciones"           ,  "OrAEE"         ,    "AndAEE"        ,     "sumaAEE"               
+, "violenciaPromedio_anio")
+```
+
+
+```{r}
+saveRDS(data, 'dataMunicipios.rds')
+
+```
+
+
+```{r}
+data2<-readRDS('dataMunicipios.rds')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+De todos estos datos solo nos importa la clave del municipio para poder hacer merge con la tabla 'listaMunicipio':
+    -Crearemos un split sobre nuestras variable keyID
+
+```{R}
+Agresiones_data<- cbind(recuperarClave(Agresiones_data$clave), Agresiones_data)
+Enfrentmientos_data<- cbind(recuperarClave(Enfrentamientos_data$clave), Enfrentamientos_data)
+Ejecuciones_data<- cbind(recuperarClave(Ejecuciones_data$clave), Ejecuciones_data)
+
+nombreColumnas <- c('clave', 'anios', 'keyID', 'agresiones' )
+colnames(Agresiones_data)<-nombreColumnas
+Agresiones_data['anios']<-NULL
+Agresiones_data['keyID']<-NULL
+
+nombreColumnas <- c('clave', 'anios', 'keyID',  'enfrentamientos' )
+colnames(Enfrentamientos_data)<-nombreColumnas
+Enfrentamientos_data['anios']<-NULL
+Enfrentamientos_data['keyID']<-NULL
+
+nombreColumnas <- c('clave', 'anios', 'keyID', 'ejecuciones' )
+colnames(Ejecuciones_data)<-nombreColumnas
+Ejecuciones_data['anios']<-NULL
+Ejecuciones_data['keyID']<-NULL
+
+
+```
+
+
+
